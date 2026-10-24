@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -109,4 +108,273 @@
         for (let i = 1; i <= count; i++) {
             html += `<input type="text" class="player-name" placeholder="اسم اللاعب ${i}" value="لاعب ${i}">`;
         }
-        html += `<p style="margin-top:15px; text
+        html += `<p style="margin-top:15px; text-align:right;">عدد الجولات:</p>`;
+        html += `<input type="number" id="totalRounds" min="1" value="3">`;
+        html += `<button id="startBtn">بدء اللعبة 🚀</button></div>`;
+        app.innerHTML = html;
+
+        document.getElementById('startBtn').onclick = () => {
+            let nameInputs = document.querySelectorAll('.player-name');
+            gameState.players = [];
+            nameInputs.forEach((input, index) => {
+                let name = input.value.trim() || `لاعب ${index + 1}`;
+                gameState.players.push({ name, score: 0 });
+            });
+            gameState.totalRounds = parseInt(document.getElementById('totalRounds').value) || 1;
+            gameState.currentRound = 1;
+            startRound();
+        };
+    }
+
+    function startRound() {
+        let shuffled = [...gameState.players].sort(() => Math.random() - 0.5);
+        gameState.impostor = shuffled[0];
+        gameState.impostor.role = "الامبوستر";
+        
+        gameState.sniper = shuffled[1];
+        gameState.sniper.role = "القناص";
+
+        gameState.detectives = shuffled.slice(2);
+        gameState.detectives.forEach(p => p.role = "المكتشف");
+
+        gameState.category = predefinedCategories[Math.floor(Math.random() * predefinedCategories.length)];
+        gameState.sniperGuessedCorrectly = false;
+        gameState.roundSummaryText = "";
+
+        renderPassDevice(gameState.impostor.name, renderImpostorSetup);
+    }
+
+    function renderPassDevice(playerName, nextCallback) {
+        app.innerHTML = `
+            <div class="game-card">
+                <h2>📱 تمرير الجهاز</h2>
+                <p style="font-size: 18px; margin: 20px 0;">أعطِ الجهاز الآن إلى: <br><strong style="color: #38bdf8; font-size: 22px;">[ ${playerName} ]</strong></p>
+                <p style="color: #94a3b8; font-size: 14px;">تأكد أن لا أحد ينظر إلى الشاشة غيره!</p>
+                <button id="readyBtn">أنا جاهز</button>
+            </div>
+        `;
+        document.getElementById('readyBtn').onclick = nextCallback;
+    }
+
+    function renderImpostorSetup() {
+        app.innerHTML = `
+            <div class="game-card">
+                <h2>🕵️‍♂️ مرحباً بك</h2>
+                <p style="color: #38bdf8;">دورك: الامبوستر</p>
+                <p style="margin: 10px 0; background: #0f172a; padding: 10px; border-radius: 6px;">الفئة المختارة للعبة: <strong style="color: #38bdf8;">${gameState.category}</strong></p>
+                <textarea id="words" rows="4" placeholder="اكتب 5 كلمات أو أكثر تصف الفئة (مفصولة بفواصل أو أسطر)"></textarea>
+                <input type="number" id="wordsToSay" placeholder="كم كلمة ستعطي في حديثك؟" min="1" value="2">
+                <button id="saveImpostorBtn">حفظ الكلمات وتمرير الجهاز</button>
+            </div>
+        `;
+        document.getElementById('saveImpostorBtn').onclick = () => {
+            let wordsText = document.getElementById('words').value.trim();
+            let wordsToSay = parseInt(document.getElementById('wordsToSay').value) || 1;
+
+            let wordsArr = wordsText.split(/[\n,]+/).map(w => w.trim()).filter(w => w.length > 0);
+
+            if (wordsArr.length < 5) {
+                alert('❌ عذراً، يجب إدخال 5 كلمات على الأقل!');
+                return;
+            }
+
+            gameState.words = wordsArr;
+            gameState.wordsToSay = wordsToSay;
+
+            renderPassDevice(gameState.sniper.name, renderSniperMemory);
+        };
+    }
+
+    function renderSniperMemory() {
+        app.innerHTML = `
+            <div class="game-card">
+                <h2>🎯 مرحباً بك</h2>
+                <p style="color: #38bdf8;">دورك: القناص</p>
+                <p style="margin: 10px 0; background: #0f172a; padding: 10px; border-radius: 6px;">الفئة: <strong style="color: #38bdf8;">${gameState.category}</strong></p>
+                <p>لديك 5 ثوانٍ فقط لحفظ الكلمات التالية!</p>
+                <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin: 15px 0; text-align: right;">
+                    <p><strong>الكلمات:</strong> ${gameState.words.join(', ')}</p>
+                </div>
+                <div class="timer" id="timer">5</div>
+            </div>
+        `;
+
+        let timeLeft = 5;
+        let timerInterval = setInterval(() => {
+            timeLeft--;
+            let timerEl = document.getElementById('timer');
+            if (timerEl) timerEl.innerText = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                renderGamePlayPhase();
+            }
+        }, 1000);
+    }
+
+    function renderGamePlayPhase() {
+        app.innerHTML = `
+            <div class="game-card">
+                <h2>🎙️ مرحلة المحادثة والمناقشة</h2>
+                <p>الآن يدور الحديث والمناقشة بين الجميع لمدة دقيقة!</p>
+                <div class="timer" id="discussionTimer">60</div>
+                <button id="skipTimerBtn" style="background: #334155; color: #fff;">إنهاء المناقشة وبدء التصويت</button>
+            </div>
+        `;
+
+        let timeLeft = 60;
+        let timerInterval = setInterval(() => {
+            timeLeft--;
+            let timerEl = document.getElementById('discussionTimer');
+            if (timerEl) timerEl.innerText = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                startVotingPhase();
+            }
+        }, 1000);
+
+        document.getElementById('skipTimerBtn').onclick = () => {
+            clearInterval(timerInterval);
+            startVotingPhase();
+        };
+    }
+
+    function startVotingPhase() {
+        gameState.votingQueue = [...gameState.players].sort(() => Math.random() - 0.5);
+        gameState.currentVotingIndex = 0;
+        processNextVoter();
+    }
+
+    function processNextVoter() {
+        if (gameState.currentVotingIndex < gameState.votingQueue.length) {
+            let currentPlayer = gameState.votingQueue[gameState.currentVotingIndex];
+            renderPassDevice(currentPlayer.name, () => {
+                if (currentPlayer === gameState.sniper) {
+                    renderSniperGuessPhase(currentPlayer);
+                } else {
+                    renderPlayerVotePhase(currentPlayer);
+                }
+            });
+        } else {
+            renderRoundSummary();
+        }
+    }
+
+    function renderSniperGuessPhase(sniperPlayer) {
+        let playerOptions = gameState.players.filter(p => p !== sniperPlayer).map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+        app.innerHTML = `
+            <div class="game-card">
+                <h2>🎯 دور القناص: صيد الامبوستر</h2>
+                <p>اختر من تعتقد أنه الامبوستر واكتب الكلمات:</p>
+                <label style="text-align:right; display:block; margin-top:10px;">اختر الامبوستر:</label>
+                <select id="guessedImpostor">${playerOptions}</select>
+                
+                <label style="text-align:right; display:block; margin-top:10px;">اكتب الكلمات أو الكلمة:</label>
+                <input type="text" id="guessedWords" placeholder="اكتب الكلمات المشكوك فيها">
+                
+                <button id="submitSniperGuess">تأكيد الإجابة</button>
+            </div>
+        `;
+
+        document.getElementById('submitSniperGuess').onclick = () => {
+            let guessedImp = document.getElementById('guessedImpostor').value;
+            let guessedWordsInput = document.getElementById('guessedWords').value.trim();
+
+            let isImpostorCorrect = (guessedImp === gameState.impostor.name);
+            let typedWords = guessedWordsInput.split(/[\n,]+/).map(w => w.trim().toLowerCase());
+            let hasCorrectWord = typedWords.some(tw => gameState.words.map(w => w.toLowerCase()).includes(tw));
+
+            if (isImpostorCorrect && hasCorrectWord) {
+                gameState.sniper.score += 5;
+                gameState.sniperGuessedCorrectly = true;
+                gameState.roundSummaryText += `🎯 القناص (${gameState.sniper.name}) اصطاد الامبوستر والكلمات بنجاح وكسب 5 نقاط!<br>`;
+            } else {
+                gameState.impostor.score += 5;
+                gameState.roundSummaryText += `❌ فشل القناص (${gameState.sniper.name}) في صيد الامبوستر، وذهبت النقاط للامبوستر (${gameState.impostor.name}).<br>`;
+            }
+
+            gameState.currentVotingIndex++;
+            processNextVoter();
+        };
+    }
+
+    function renderPlayerVotePhase(player) {
+        let playerOptions = gameState.players.filter(p => p !== player).map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+        app.innerHTML = `
+            <div class="game-card">
+                <h2>🗳️ دور التصويت</h2>
+                <p>مرحباً يا <strong>${player.name}</strong></p>
+                <p style="margin-top:10px;">من هو اللاعب الذي تشك أنه <strong>القناص</strong>؟</p>
+                <select id="votedSniper">${playerOptions}</select>
+                <button id="submitPlayerVote">تأكيد التصويت</button>
+            </div>
+        `;
+
+        document.getElementById('submitPlayerVote').onclick = () => {
+            let voted = document.getElementById('votedSniper').value;
+            if (voted === gameState.sniper.name) {
+                player.score += 5;
+                gameState.roundSummaryText += `🎉 اللاعب (${player.name}) نجح في كشف القناص وكسب 5 نقاط!<br>`;
+            } else {
+                gameState.roundSummaryText += `❌ اللاعب (${player.name}) أخطأ في تصويته.<br>`;
+            }
+
+            gameState.currentVotingIndex++;
+            processNextVoter();
+        };
+    }
+
+    function renderRoundSummary() {
+        let scoresHtml = gameState.players.map(p => `<div class="score-item"><span>${p.name}</span> <strong>${p.score} نقطة</strong></div>`).join('');
+        
+        app.innerHTML = `
+            <div class="game-card">
+                <h2>📊 نتائج الجولة ${gameState.currentRound}</h2>
+                <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin: 15px 0; text-align: right; font-size: 14px;">
+                    <p>${gameState.roundSummaryText}</p>
+                    <hr style="border-color: #334155; margin: 10px 0;">
+                    <p><strong>الفئة (الكتقوري):</strong> ${gameState.category}</p>
+                    <p><strong>الامبوستر:</strong> ${gameState.impostor.name}</p>
+                    <p><strong>القناص:</strong> ${gameState.sniper.name}</p>
+                    <p><strong>الكلمات الأصلية:</strong> ${gameState.words.join(', ')}</p>
+                </div>
+                <h3>النقاط الإجمالية:</h3>
+                <div class="score-list">${scoresHtml}</div>
+                <button id="nextRoundBtn">${gameState.currentRound < gameState.totalRounds ? 'الجولة التالية ⬅️' : 'عرض النتيجة النهائية 🏆'}</button>
+            </div>
+        `;
+
+        document.getElementById('nextRoundBtn').onclick = () => {
+            if (gameState.currentRound < gameState.totalRounds) {
+                gameState.currentRound++;
+                startRound();
+            } else {
+                renderFinalWinner();
+            }
+        };
+    }
+
+    function renderFinalWinner() {
+        let sortedPlayers = [...gameState.players].sort((a, b) => b.score - a.score);
+        let winner = sortedPlayers[0];
+
+        let rankingHtml = sortedPlayers.map((p, idx) => `<div class="score-item"><span>${idx + 1}. ${p.name}</span> <strong>${p.score} نقطة</strong></div>`).join('');
+
+        app.innerHTML = `
+            <div class="game-card">
+                <h2>🏆 النتيجة النهائية للعبة 🏆</h2>
+                <p style="font-size: 20px; color: #38bdf8; margin: 20px 0;">الفائز هو: <strong>${winner.name}</strong> برصيد ${winner.score} نقطة! 🎉</p>
+                <h3>جدول الترتيب النهائي:</h3>
+                <div class="score-list">${rankingHtml}</div>
+                <button id="restartBtn" style="background: #10b981; color: #fff;">لعب مرة أخرى 🔄</button>
+            </div>
+        `;
+
+        document.getElementById('restartBtn',).onclick = () => {
+            renderSetup();
+        };
+    }
+
+    renderSetup();
+</script>
+</body>
+</html>
