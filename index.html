@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة تذكر وش قال لك!</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .game-card {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            text-align: center;
+            box-sizing: border-box;
+        }
+        h2 { color: #38bdf8; margin-bottom: 20px; }
+        p { line-height: 1.6; }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            box-sizing: border-box;
+            text-align: right;
+        }
+        textarea { resize: vertical; }
+        button {
+            background: #38bdf8;
+            color: #0f172a;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            transition: 0.2s;
+        }
+        button:hover { background: #0ea5e9; }
+        .timer { font-size: 48px; color: #f43f5e; font-weight: bold; margin: 20px 0; }
+        .score-list { text-align: right; margin: 15px 0; }
+        .score-item { background: #334155; padding: 10px 15px; margin: 8px 0; border-radius: 6px; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+    const app = document.getElementById('app');
+
+    const predefinedCategories = ["مدرسة", "مستشفى", "مطار", "صالون", "حديقة حيوانات", "مكتبة"];
+
+    let gameState = {
+        players: [],
+        totalRounds: 1,
+        currentRound: 1,
+        impostor: null,
+        sniper: null,
+        category: '',
+        words: [],
+        wordsToSay: 0,
+        votingQueue: [],
+        currentVotingIndex: 0,
+        sniperGuessedCorrectly: false,
+        roundSummaryText: ""
+    };
+
+    function renderSetup() {
+        app.innerHTML = `
+            <div class="game-card">
+                <h2>🎮 تذكر وش قال لك!</h2>
+                <p>أدخل عدد اللاعبين (4 لاعبين على الأقل)</p>
+                <input type="number" id="playerCount" min="4" value="4">
+                <button id="nextBtn">التالي</button>
+            </div>
+        `;
+        document.getElementById('nextBtn').onclick = () => {
+            let count = parseInt(document.getElementById('playerCount').value);
+            if (isNaN(count) || count < 4) {
+                alert('❌ الحد الأدنى للعب هو 4 لاعبين!');
+                return;
+            }
+            renderNamesInput(count);
+        };
+    }
+
+    function renderNamesInput(count) {
+        let html = `<div class="game-card"><h2>👥 أسماء اللاعبين وعدد الجولات</h2>`;
+        for (let i = 1; i <= count; i++) {
+            html += `<input type="text" class="player-name" placeholder="اسم اللاعب ${i}" value="لاعب ${i}">`;
+        }
+        html += `<p style="margin-top:15px; text
